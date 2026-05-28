@@ -888,10 +888,11 @@ async def handle_index(request):
         <div id="btnIND" class="region-btn" onclick="setRegion('IND')">🇮🇳 INDIA</div>
     </div>
     <div class="input-group">
-        <input type="text" id="teamcode" placeholder="Enter team code (digits only)" inputmode="numeric" autocomplete="off">
-        <button id="startBtn">▶ START LEVELING</button>
-        <button id="stopBtn" class="stop-btn">⏹ STOP MY BOT</button>
-    </div>
+    <input type="text" id="teamcode" placeholder="Enter team code (digits only)" inputmode="numeric" autocomplete="off">
+    <button id="pasteBtn" type="button" style="background: #2c5a7a;">📋 Paste</button>
+    <button id="startBtn">▶ START LEVELING</button>
+    <button id="stopBtn" class="stop-btn">⏹ STOP MY BOT</button>
+</div>
     <div class="status-panel">
         <h3>🤖 BOT FLEET STATUS</h3>
         <div id="botsContainer"></div>
@@ -960,7 +961,22 @@ async def handle_index(request):
         setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 500); }, 3000);
     }
     let currentRegion = 'BD';
-    function setRegion(reg) {
+
+// ---------- Paste button ----------
+document.getElementById('pasteBtn').addEventListener('click', async () => {
+    try {
+        const text = await navigator.clipboard.readText();
+        const input = document.getElementById('teamcode');
+        input.value = text;
+        // Trigger the auto‑start check
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        showToast('📋 Pasted from clipboard', 'success');
+    } catch (err) {
+        showToast('❌ Failed to paste – clipboard access denied', 'error');
+    }
+});
+
+function setRegion(reg) {
         currentRegion = reg;
         document.getElementById('btnBD').classList.toggle('active', reg === 'BD');
         document.getElementById('btnIND').classList.toggle('active', reg === 'IND');
@@ -1178,7 +1194,7 @@ async def start_web_server():
     app.router.add_post('/stop', handle_stop)
     runner = web.AppRunner(app)
     await runner.setup()
-    PORT = int(os.getenv("PORT", 11836))
+    PORT = int(os.getenv("PORT", 10000))
     site = web.TCPSite(runner, '0.0.0.0', PORT)
     await site.start()
     print(f"🌐 FF AUTO LEVEL UP BOT – http://localhost:{PORT}")

@@ -10,3 +10,4 @@ pytz
 aiohttp
 cfonts
 google-play-scraper
+python-dotenv

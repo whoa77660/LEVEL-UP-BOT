@@ -1,12 +1,11 @@
 # ⚡ FF AUTO LEVEL UP BOT – RNR TEAM ⚡
-# Firebase + .env + Graceful shutdown
+# Firebase + .env + Graceful shutdown + Keep-alive
 
 import os
 import json
 import asyncio
 import signal
 import time
-import traceback
 import ssl
 import urllib3
 import threading
@@ -34,9 +33,13 @@ import google.protobuf.json_format as json_format
 load_dotenv()
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "rnr6677")
 FIREBASE_DATABASE_URL = os.getenv("FIREBASE_DATABASE_URL")
+FIREBASE_KEY_JSON = os.getenv("FIREBASE_KEY_JSON")
+
+if not FIREBASE_KEY_JSON:
+    raise RuntimeError("Missing FIREBASE_KEY_JSON environment variable")
 
 # ---------- Firebase init ----------
-cred = credentials.ApplicationDefault()  # uses GOOGLE_APPLICATION_CREDENTIALS
+cred = credentials.Certificate(json.loads(FIREBASE_KEY_JSON))
 firebase_admin.initialize_app(cred, {
     'databaseURL': FIREBASE_DATABASE_URL
 })
@@ -58,7 +61,7 @@ PACKET_TYPE_BD = "0519"
 PACKET_TYPE_IND = "0515"
 PACKET_TYPE_DEFAULT = "0515"
 
-# ---------- Original Helper Functions (copy‑pasted from your working code) ----------
+# ---------- Helper Functions ----------
 def rot13(text):
     result = ""
     for c in text:
@@ -503,7 +506,7 @@ class BotInstance:
             self.whisper_writer.close()
         self.ready = False
 
-# ---------- QueueManager (Firebase backed) ----------
+# ---------- QueueManager ----------
 class QueueManager:
     def __init__(self):
         self.bots = []
@@ -649,9 +652,9 @@ class QueueManager:
 # ---------- Global manager ----------
 manager = QueueManager()
 
-# ---------- Web Handlers (HTML unchanged) ----------
+# ---------- Web Handlers ----------
 async def handle_index(request):
-    html = """<!DOCTYPE html>
+    html = r"""<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -997,24 +1000,21 @@ async def handle_index(request):
             loadingDiv.innerHTML = `✅ ${onlineBots} bots online · ${data.bots.length} total`;
         } catch(e) { console.warn(e); }
     }
-    // ---------- AUTO-START ON 7 DIGITS ----------
     let autoStartEnabled = true;
     const teamcodeInput = document.getElementById('teamcode');
     async function autoStartIfReady() {
         const teamcode = teamcodeInput.value.trim();
-        if (autoStartEnabled && teamcode.length === 7 && /^\\d+$/.test(teamcode)) {
+        if (autoStartEnabled && teamcode.length === 7 && /^\d+$/.test(teamcode)) {
             autoStartEnabled = false;
             document.getElementById('startBtn').click();
             setTimeout(() => { autoStartEnabled = true; }, 2000);
         }
     }
     teamcodeInput.addEventListener('input', autoStartIfReady);
-    teamcodeInput.addEventListener('paste', () => {
-        setTimeout(autoStartIfReady, 10);
-    });
+    teamcodeInput.addEventListener('paste', () => { setTimeout(autoStartIfReady, 10); });
     document.getElementById('startBtn').onclick = async () => {
         const teamcode = teamcodeInput.value.trim();
-        if (!teamcode || !/^\\d+$/.test(teamcode)) {
+        if (!teamcode || !/^\d+$/.test(teamcode)) {
             showToast('❌ Enter a valid numeric team code', 'error');
             return;
         }
@@ -1046,80 +1046,81 @@ async def handle_index(request):
 </html>"""
     return web.Response(text=html, content_type='text/html')
 
+# ---------- Admin handler ----------
 async def handle_admin(request):
     password = request.query.get('password', '')
     if password != ADMIN_PASSWORD:
-        login_html = """
-        <!DOCTYPE html>
-        <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin Login</title><style>
-        body{background:#0a0f1e;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;}
-        .card{background:rgba(0,0,0,0.8);backdrop-filter:blur(10px);padding:2rem;border-radius:2rem;border:1px solid cyan;}
-        input,button{padding:12px;margin:8px;border-radius:40px;border:none;}
-        input{background:#111;color:white;border:1px solid cyan;}
-        button{background:cyan;font-weight:bold;color:black;}
-        h2{color:white;}
-        </style></head><body><div class='card'><h2>🔐 Admin Access</h2><form method='get'><input type='password' name='password' placeholder='Admin Password'><button type='submit'>Enter</button></form></div></body></html>
-        """
+        login_html = r"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Admin Login</title><style>
+body{background:#0a0f1e;display:flex;justify-content:center;align-items:center;height:100vh;font-family:sans-serif;}
+.card{background:rgba(0,0,0,0.8);backdrop-filter:blur(10px);padding:2rem;border-radius:2rem;border:1px solid cyan;}
+input,button{padding:12px;margin:8px;border-radius:40px;border:none;}
+input{background:#111;color:white;border:1px solid cyan;}
+button{background:cyan;font-weight:bold;color:black;}
+h2{color:white;}
+</style></head><body><div class='card'><h2>🔐 Admin Access</h2><form method='get'><input type='password' name='password' placeholder='Admin Password'><button type='submit'>Enter</button></form></div></body></html>"""
         return web.Response(text=login_html, content_type='text/html')
 
     bots = manager.get_bots_list()
     bots_html = "".join(f"<div class='bot-card'><span style='color:white;font-weight:bold;'>{b['uid']}</span> <span style='color:#88ff88;'>{b['region']}</span> <span style='color:cyan;'>{'✅' if b['ready'] else '⚠️'}</span> <button onclick=\"removeBot('{b['uid']}')\">🗑 Remove</button></div>" for b in bots)
 
-    admin_html = f"""
-    <!DOCTYPE html>
-    <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Admin Panel - Bot Manager</title>
-    <style>
-        *{{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif;}}
-        body{{background:linear-gradient(145deg,#071a25,#021018);padding:30px;color:#ffffff;}}
-        .container{{max-width:800px;margin:auto;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);border-radius:2rem;padding:2rem;border:1px solid cyan;}}
-        h1{{text-align:center;margin-bottom:20px;color:cyan;}}
-        .bot-card{{background:#0a1a2e;margin:12px 0;padding:12px 18px;border-radius:60px;display:flex;justify-content:space-between;align-items:center;}}
-        .bot-card span{{color:white;}}
-        button{{background:#2c5a7a;border:none;padding:8px 20px;border-radius:40px;color:white;cursor:pointer;transition:0.2s;}}
-        button:hover{{background:#00a8cc;transform:scale(1.02);}}
-        .add-section{{margin-top:30px;background:#01121c;padding:20px;border-radius:1.5rem;}}
-        input, select{{background:#102b37;border:1px solid cyan;padding:12px;border-radius:40px;color:white;width:calc(50% - 20px);margin:5px;}}
-        .logout{{float:right;color:cyan;text-decoration:none;}}
-        .add-section h3{{color:#aaffff;margin-bottom:12px;}}
-        </style>
-    </head><body>
-    <div class="container">
-        <h1>👑 ADMIN DASHBOARD <a href="/?password={ADMIN_PASSWORD}" class='logout'>⬅ Back</a></h1>
-        <div id="botlist">{bots_html}</div>
-        <div class="add-section">
-            <h3>➕ Add New Bot Account</h3>
-            <input type="text" id="new_uid" placeholder="UID" autocomplete="off">
-            <input type="password" id="new_pass" placeholder="Password">
-            <select id="new_region">
-                <option value="BD">Bangladesh (BD)</option>
-                <option value="IND">India (IND)</option>
-            </select>
-            <button onclick="addBot()">Add Bot</button>
-            <div id="addMsg" style="color:#88ff88; margin-top:10px;"></div>
-        </div>
+    admin_html = f"""<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Panel - Bot Manager</title>
+<style>
+    *{{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif;}}
+    body{{background:linear-gradient(145deg,#071a25,#021018);padding:30px;color:#ffffff;}}
+    .container{{max-width:800px;margin:auto;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);border-radius:2rem;padding:2rem;border:1px solid cyan;}}
+    h1{{text-align:center;margin-bottom:20px;color:cyan;}}
+    .bot-card{{background:#0a1a2e;margin:12px 0;padding:12px 18px;border-radius:60px;display:flex;justify-content:space-between;align-items:center;}}
+    .bot-card span{{color:white;}}
+    button{{background:#2c5a7a;border:none;padding:8px 20px;border-radius:40px;color:white;cursor:pointer;transition:0.2s;}}
+    button:hover{{background:#00a8cc;transform:scale(1.02);}}
+    .add-section{{margin-top:30px;background:#01121c;padding:20px;border-radius:1.5rem;}}
+    input, select{{background:#102b37;border:1px solid cyan;padding:12px;border-radius:40px;color:white;width:calc(50% - 20px);margin:5px;}}
+    .logout{{float:right;color:cyan;text-decoration:none;}}
+    .add-section h3{{color:#aaffff;margin-bottom:12px;}}
+    </style>
+</head><body>
+<div class="container">
+    <h1>👑 ADMIN DASHBOARD <a href="/?password={ADMIN_PASSWORD}" class='logout'>⬅ Back</a></h1>
+    <div id="botlist">{bots_html}</div>
+    <div class="add-section">
+        <h3>➕ Add New Bot Account</h3>
+        <input type="text" id="new_uid" placeholder="UID" autocomplete="off">
+        <input type="password" id="new_pass" placeholder="Password">
+        <select id="new_region">
+            <option value="BD">Bangladesh (BD)</option>
+            <option value="IND">India (IND)</option>
+        </select>
+        <button onclick="addBot()">Add Bot</button>
+        <div id="addMsg" style="color:#88ff88; margin-top:10px;"></div>
     </div>
-    <script>
-        async function removeBot(uid) {{
-            if(!confirm("Remove bot "+uid+"?")) return;
-            let res = await fetch('/admin/remove', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body:JSON.stringify({{uid: uid, password: "{ADMIN_PASSWORD}"}})}});
-            let data = await res.json();
-            alert(data.message);
-            location.reload();
-        }}
-        async function addBot() {{
-            let uid = document.getElementById('new_uid').value.trim();
-            let pass = document.getElementById('new_pass').value.trim();
-            let region = document.getElementById('new_region').value;
-            if(!uid || !pass) {{ alert("Fill all fields"); return; }}
-            let res = await fetch('/admin/add', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body:JSON.stringify({{uid: uid, password: pass, region: region, admin_password: "{ADMIN_PASSWORD}"}})}});
-            let data = await res.json();
+</div>
+<script>
+    async function removeBot(uid) {{
+        if(!confirm("Remove bot "+uid+"?")) return;
+        let res = await fetch('/admin/remove', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body:JSON.stringify({{uid: uid, password: "{ADMIN_PASSWORD}"}})}});
+        let data = await res.json();
+        alert(data.message);
+        location.reload();
+    }}
+    async function addBot() {{
+        let uid = document.getElementById('new_uid').value.trim();
+        let pass = document.getElementById('new_pass').value.trim();
+        let region = document.getElementById('new_region').value;
+        if(!uid || !pass) {{ alert("Fill all fields"); return; }}
+        let res = await fetch('/admin/add', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body:JSON.stringify({{uid: uid, password: pass, region: region, admin_password: "{ADMIN_PASSWORD}"}})}});
+        let data = await res.json();
+        if (data.success) {{
             document.getElementById('addMsg').innerText = data.message;
-            if(data.success) setTimeout(()=>location.reload(), 1000);
+            setTimeout(()=>location.reload(), 1000);
+        }} else {{
+            document.getElementById('addMsg').innerText = '❌ ' + (data.message || 'Unknown error');
         }}
-    </script>
-    </body></html>
-    """
+    }}
+</script>
+</body></html>"""
     return web.Response(text=admin_html, content_type='text/html')
 
 async def handle_admin_add(request):
@@ -1181,7 +1182,7 @@ async def start_web_server():
     site = web.TCPSite(runner, '0.0.0.0', PORT)
     await site.start()
     print(f"🌐 FF AUTO LEVEL UP BOT – http://localhost:{PORT}")
-print(f"🔒 Admin Panel: http://localhost:{PORT}")
+    print(f"🔒 Admin Panel: http://localhost:{PORT}/admin (password: {ADMIN_PASSWORD})")
     try:
         await asyncio.Event().wait()
     except asyncio.CancelledError:
@@ -1189,7 +1190,19 @@ print(f"🔒 Admin Panel: http://localhost:{PORT}")
     finally:
         await runner.cleanup()
 
-# ---------- Graceful shutdown ----------
+# ---------- Keep-alive thread ----------
+RENDER_URL = os.getenv("RENDER_URL", "https://level-up-bot-o0ds.onrender.com/")
+
+def keep_alive():
+    while True:
+        try:
+            response = requests.get(RENDER_URL, timeout=30)
+            print(f"Self Ping: {response.status_code}")
+        except Exception as e:
+            print(f"Self Ping Error: {e}")
+        time.sleep(49)
+
+# ---------- Main ----------
 async def main():
     loop = asyncio.get_running_loop()
     stop_event = asyncio.Event()
@@ -1202,41 +1215,19 @@ async def main():
     loop.add_signal_handler(signal.SIGINT, shutdown)
 
     web_task = asyncio.create_task(start_web_server())
-
     await asyncio.sleep(0.5)
     await manager.init_from_firebase()
 
+    # Start keep-alive thread (daemon)
+    threading.Thread(target=keep_alive, daemon=True).start()
+
     await stop_event.wait()
-
     web_task.cancel()
-
     try:
         await web_task
     except asyncio.CancelledError:
         pass
-
     print("✅ Bot shut down successfully.")
 
-
-# ---------- Keep-alive for Render ----------
-
-RENDER_URL = os.getenv(
-    "RENDER_URL",
-    "https://level-up-bot-o0ds.onrender.com/"
-)
-
-def keep_alive():
-    while True:
-        try:
-            response = requests.get(RENDER_URL, timeout=30)
-            print(f"Self Ping: {response.status_code}")
-
-        except Exception as e:
-            print(f"Self Ping Error: {e}")
-
-        time.sleep(49)
-
-
 if __name__ == '__main__':
-    threading.Thread(target=keep_alive, daemon=True).start()
     asyncio.run(main())

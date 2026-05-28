@@ -11,3 +11,4 @@ aiohttp
 cfonts
 google-play-scraper
 python-dotenv
+firebase-admin

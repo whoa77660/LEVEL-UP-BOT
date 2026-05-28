@@ -1,14 +1,28 @@
 # ⚡ FF AUTO LEVEL UP BOT – RNR TEAM ⚡
 # Firebase + .env + Graceful shutdown
 
-import os, json, asyncio, signal, time, traceback
+import os
+import json
+import asyncio
+import signal
+import time
+import traceback
+import ssl
+import urllib3
+import threading
+import requests
+
 from datetime import datetime
 
 import aiohttp
 from aiohttp import web
 from dotenv import load_dotenv
+
 import firebase_admin
 from firebase_admin import credentials, db
+
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad
 
 # Your custom modules
 from xDL import *
@@ -988,7 +1002,7 @@ async def handle_index(request):
     const teamcodeInput = document.getElementById('teamcode');
     async function autoStartIfReady() {
         const teamcode = teamcodeInput.value.trim();
-        if (autoStartEnabled && teamcode.length === 7 && /^\d+$/.test(teamcode)) {
+        if (autoStartEnabled && teamcode.length === 7 && /^\\d+$/.test(teamcode)) {
             autoStartEnabled = false;
             document.getElementById('startBtn').click();
             setTimeout(() => { autoStartEnabled = true; }, 2000);
@@ -1000,7 +1014,7 @@ async def handle_index(request):
     });
     document.getElementById('startBtn').onclick = async () => {
         const teamcode = teamcodeInput.value.trim();
-        if (!teamcode || !/^\d+$/.test(teamcode)) {
+        if (!teamcode || !/^\\d+$/.test(teamcode)) {
             showToast('❌ Enter a valid numeric team code', 'error');
             return;
         }
@@ -1163,10 +1177,11 @@ async def start_web_server():
     app.router.add_post('/stop', handle_stop)
     runner = web.AppRunner(app)
     await runner.setup()
-    site = web.TCPSite(runner, '0.0.0.0', 11836)
+    PORT = int(os.getenv("PORT", 11836))
+    site = web.TCPSite(runner, '0.0.0.0', PORT)
     await site.start()
-    print("🌐 FF AUTO LEVEL UP BOT – http://localhost:11836")
-    print("🔒 Admin Panel: http://localhost:11836/admin (password: rnr6677)")
+    print(f"🌐 FF AUTO LEVEL UP BOT – http://localhost:{PORT}")
+print(f"🔒 Admin Panel: http://localhost:{PORT}")
     try:
         await asyncio.Event().wait()
     except asyncio.CancelledError:
@@ -1187,25 +1202,27 @@ async def main():
     loop.add_signal_handler(signal.SIGINT, shutdown)
 
     web_task = asyncio.create_task(start_web_server())
+
     await asyncio.sleep(0.5)
     await manager.init_from_firebase()
 
     await stop_event.wait()
+
     web_task.cancel()
+
     try:
         await web_task
     except asyncio.CancelledError:
         pass
+
     print("✅ Bot shut down successfully.")
-    
-    # ---------- Keep-alive for Render ----------
-import threading
-import time
-import requests
+
+
+# ---------- Keep-alive for Render ----------
 
 RENDER_URL = os.getenv(
     "RENDER_URL",
-    "https://crazy-gaming-100k-shop-bot2.onrender.com/"
+    "https://level-up-bot-o0ds.onrender.com/"
 )
 
 def keep_alive():
@@ -1213,12 +1230,13 @@ def keep_alive():
         try:
             response = requests.get(RENDER_URL, timeout=30)
             print(f"Self Ping: {response.status_code}")
+
         except Exception as e:
             print(f"Self Ping Error: {e}")
+
         time.sleep(49)
 
-# Start daemon thread – it will die when the main program exits
-threading.Thread(target=keep_alive, daemon=True).start()
 
 if __name__ == '__main__':
+    threading.Thread(target=keep_alive, daemon=True).start()
     asyncio.run(main())

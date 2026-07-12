@@ -25,7 +25,7 @@ from Crypto.Util.Padding import pad
 
 # Your custom modules
 from xDL import *
-from autoup import *
+from autoup import AuToUpDaTE
 from Pb2 import DEcwHisPErMsG_pb2, MajoRLoGinrEs_pb2, PorTs_pb2, MajoRLoGinrEq_pb2
 import google.protobuf.json_format as json_format
 
@@ -108,7 +108,12 @@ async def GeNeRaTeAccEss(uid, password):
                 return data.get("open_id"), data.get("access_token")
             return None, None
 
-login_url, ob, version = AuToUpDaTE()
+# ---------- Fetch version + region-specific login URLs ----------
+BD_LOGIN_URL, IND_LOGIN_URL, ob, version = AuToUpDaTE()
+print(f"🌐 BD Login URL : {BD_LOGIN_URL}")
+print(f"🌐 IND Login URL: {IND_LOGIN_URL}")
+print(f"📦 Version: {version}  OB: {ob}")
+
 Hr = {
     'User-Agent': Uaa(),
     'Connection': "Keep-Alive",
@@ -190,16 +195,22 @@ async def EncRypTMajoRLoGin(open_id, access_token):
     string = major_login.SerializeToString()
     return await encrypted_proto(string)
 
-async def MajorLogin(payload):
+# --- FIX: accept region-specific login_url as parameter ---
+async def MajorLogin(payload, login_url):
     url = f"{login_url}MajorLogin"
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
     ssl_context.verify_mode = ssl.CERT_NONE
-    async with aiohttp.ClientSession() as session:
-        async with session.post(url, data=payload, headers=Hr, ssl=ssl_context) as response:
-            if response.status == 200:
-                return await response.read()
-            return None
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, data=payload, headers=Hr, ssl=ssl_context) as response:
+                if response.status == 200:
+                    return await response.read()
+                print(f"[MajorLogin] HTTP {response.status} from {url}")
+                return None
+    except Exception as e:
+        print(f"[MajorLogin] Connection error to {url}: {e}")
+        return None
 
 async def GetLoginData(base_url, payload, token):
     url = f"{base_url}/GetLoginData"
@@ -341,6 +352,11 @@ class BotInstance:
         self.uid = uid
         self.password = password
         self.region = region
+        # FIX: use region-specific login URL
+        if region.upper() == "BD":
+            self.login_url = BD_LOGIN_URL
+        else:
+            self.login_url = IND_LOGIN_URL
         self.online_writer = None
         self.whisper_writer = None
         self.key = None
@@ -358,14 +374,18 @@ class BotInstance:
     async def login_and_connect(self):
         open_id, access_token = await GeNeRaTeAccEss(self.uid, self.password)
         if not open_id:
+            print(f"[Bot {self.uid}] OAuth failed – check credentials")
             return False
         payload = await EncRypTMajoRLoGin(open_id, access_token)
-        login_resp = await MajorLogin(payload)
+        # FIX: pass self.login_url so each bot hits the correct regional server
+        login_resp = await MajorLogin(payload, self.login_url)
         if not login_resp:
+            print(f"[Bot {self.uid}] MajorLogin failed – URL: {self.login_url}")
             return False
         auth = await DecRypTMajoRLoGin(login_resp)
         token = auth.token
         if not token:
+            print(f"[Bot {self.uid}] No token in MajorLogin response")
             return False
         url = auth.url
         self.key = auth.key
@@ -373,6 +393,7 @@ class BotInstance:
         timestamp = auth.timestamp
         login_data = await GetLoginData(url, payload, token)
         if not login_data:
+            print(f"[Bot {self.uid}] GetLoginData failed")
             return False
         ports = await DecRypTLoGinDaTa(login_data)
         online_ip, online_port = ports.Online_IP_Port.split(":")
@@ -519,7 +540,7 @@ class QueueManager:
             return
         for uid, data in bots_data.items():
             bot = BotInstance(uid, data['password'], data['region'])
-            print(f"🔐 Logging in bot {uid} (region {data['region']})...")
+            print(f"🔐 Logging in bot {uid} (region {data['region']}, url {bot.login_url})...")
             success = await bot.login_and_connect()
             if success:
                 self.bots.append(bot)
@@ -888,11 +909,11 @@ async def handle_index(request):
         <div id="btnIND" class="region-btn" onclick="setRegion('IND')">🇮🇳 INDIA</div>
     </div>
     <div class="input-group">
-    <input type="text" id="teamcode" placeholder="Enter team code (digits only)" inputmode="numeric" autocomplete="off">
-    <button id="pasteBtn" type="button" style="background: #2c5a7a;">📋 Paste</button>
-    <button id="startBtn">▶ START LEVELING</button>
-    <button id="stopBtn" class="stop-btn">⏹ STOP MY BOT</button>
-</div>
+        <input type="text" id="teamcode" placeholder="Enter team code (digits only)" inputmode="numeric" autocomplete="off">
+        <button id="pasteBtn" type="button" style="background: #2c5a7a;">📋 Paste</button>
+        <button id="startBtn">▶ START LEVELING</button>
+        <button id="stopBtn" class="stop-btn">⏹ STOP MY BOT</button>
+    </div>
     <div class="status-panel">
         <h3>🤖 BOT FLEET STATUS</h3>
         <div id="botsContainer"></div>
@@ -918,17 +939,17 @@ async def handle_index(request):
         <p>━━━━━━━━━━━━━━</p>
         <h3>📌 Use | ব্যবহার | उपयोग</h3>
         <p>🇬🇧 Open Garena Free Fire → Lone Wolf (Dual VS) → Copy Code → Paste → Auto Join & Level Up</p>
-        <p>🇧🇩 Free Fire খুলুন → Lone Wolf (Dual VS) → Code কপি → এখানে দিন → বট জয়েন করবে</p>
+        <p>🇧🇩 Free Fire খুলুন → Lone Wolf (Dual VS) → Code কপি → এখানে দিন → বট জয়েন করবে</p>
         <p>🇮🇳 Free Fire खोलें → Lone Wolf (Dual VS) → Code कॉपी → यहाँ पेस्ट → बॉट जॉइन करेगा</p>
         <p>━━━━━━━━━━━━━━</p>
-        <h3>⚠️ Rules | নিয়ম | नियम</h3>
+        <h3>⚠️ Rules | নিয়ম | नियम</h3>
         <p>🇬🇧 Valid code • Stay online • No spam/fake • Misuse = Ban</p>
-        <p>🇧🇩 সঠিক কোড • অনলাইনে থাকুন • স্প্যাম নয় • অপব্যবহার = ব্যান</p>
+        <p>🇧🇩 সঠিক কোড • অনলাইনে থাকুন • স্প্যাম নয় • অপব্যবহার = ব্যান</p>
         <p>🇮🇳 सही कोड • ऑनलाइन रहें • स्पैम नहीं • गलत उपयोग = बैन</p>
         <p>━━━━━━━━━━━━━━</p>
         <h3>🤖 About | সম্পর্কে | बारे में</h3>
         <p>🇬🇧 Auto joins & boosts leveling</p>
-        <p>🇧🇩 অটো জয়েন করে লেভেল বাড়ায়</p>
+        <p>🇧🇩 অটো জয়েন করে লেভেল বাড়ায়</p>
         <p>🇮🇳 ऑटो जॉइन करके लेवल बढ़ाता है</p>
         <p>━━━━━━━━━━━━━━</p>
         <h3>📢 Creator & Support</h3>
@@ -962,21 +983,20 @@ async def handle_index(request):
     }
     let currentRegion = 'BD';
 
-// ---------- Paste button ----------
-document.getElementById('pasteBtn').addEventListener('click', async () => {
-    try {
-        const text = await navigator.clipboard.readText();
-        const input = document.getElementById('teamcode');
-        input.value = text;
-        // Trigger the auto‑start check
-        input.dispatchEvent(new Event('input', { bubbles: true }));
-        showToast('📋 Pasted from clipboard', 'success');
-    } catch (err) {
-        showToast('❌ Failed to paste – clipboard access denied', 'error');
-    }
-});
+    // ---------- Paste button ----------
+    document.getElementById('pasteBtn').addEventListener('click', async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            const input = document.getElementById('teamcode');
+            input.value = text;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            showToast('📋 Pasted from clipboard', 'success');
+        } catch (err) {
+            showToast('❌ Failed to paste – clipboard access denied', 'error');
+        }
+    });
 
-function setRegion(reg) {
+    function setRegion(reg) {
         currentRegion = reg;
         document.getElementById('btnBD').classList.toggle('active', reg === 'BD');
         document.getElementById('btnIND').classList.toggle('active', reg === 'IND');

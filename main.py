@@ -110,8 +110,11 @@ async def GeNeRaTeAccEss(uid, password):
 
 # ---------- Fetch version + region-specific login URLs ----------
 BD_LOGIN_URL, IND_LOGIN_URL, ob, version = AuToUpDaTE()
-print(f"🌐 BD Login URL : {BD_LOGIN_URL}")
-print(f"🌐 IND Login URL: {IND_LOGIN_URL}")
+_bd_src  = "(env override)" if os.environ.get("BD_LOGIN_URL")  else "(auto)"
+_ind_src = "(env override)" if os.environ.get("IND_LOGIN_URL") else "(auto)"
+print(f"🌐 BD Login URL : {BD_LOGIN_URL}  {_bd_src}")
+print(f"🌐 IND Login URL: {IND_LOGIN_URL}  {_ind_src}")
+print("💡 Set BD_LOGIN_URL / IND_LOGIN_URL env vars to override these.")
 print(f"📦 Version: {version}  OB: {ob}")
 
 Hr = {

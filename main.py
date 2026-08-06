@@ -456,6 +456,7 @@ class BotInstance:
         self.is_busy            = False
         self.current_session_id = None
         self.last_error         = None
+        self.account_name      = None
 
     async def login_and_connect(self):
         clog("BOT", self.uid, f"🔐 Login attempt region={self.region} url={self.login_url}")
@@ -492,6 +493,8 @@ class BotInstance:
             return False
 
         ports      = await DecRypTLoGinDaTa(login_data)
+        if hasattr(ports, 'AccountName'):
+            self.account_name = ports.AccountName
         online_ip, online_port = ports.Online_IP_Port.split(":")
         chat_ip,   chat_port   = ports.AccountIP_Port.split(":")
         clog("CONN", self.uid, f"Game servers → online={online_ip}:{online_port}  chat={chat_ip}:{chat_port}")
@@ -800,7 +803,7 @@ class QueueManager:
 
     def get_bots_list(self):
         return [{
-            'uid': b.uid, 'region': b.region,
+            'uid': b.uid, 'name': b.account_name or '', 'region': b.region,
             'ready': b.ready, 'busy': b.is_busy,
             'error': b.last_error
         } for b in self.bots]
@@ -1031,9 +1034,11 @@ button{{width:100%;padding:12px;border-radius:40px;border:none;background:cyan;f
         status_color = "#88ff88" if b['ready'] and not b['busy'] else ("#ffaa00" if b['busy'] else "#ff6666")
         status_text  = ("🟢 Ready" if b['ready'] and not b['busy'] else
                         (f"🔴 Busy (team {b.get('current_team','')})" if b['busy'] else "⚠️ Reconnecting"))
+        display_name = b['name'] if b.get('name') else b['uid']
         bots_html += f"""
         <div class='bot-card'>
-          <span style='color:white;font-weight:bold;font-family:monospace;'>{b['uid']}</span>
+          <span style='color:white;font-weight:bold;font-family:monospace;'>🔹 Name: {display_name}</span>
+          <span style='color:#88dfff;'>UID: {b['uid']}</span>
           <span style='color:cyan;'>[{b['region']}]</span>
           <span style='color:{status_color};'>{status_text}</span>
           <button onclick="removeBot('{b['uid']}')" style='background:#c0392b;'>🗑 Remove</button>
@@ -1404,7 +1409,7 @@ async def start_web_server():
         await runner.cleanup()
 
 # ─── Keep-alive ───────────────────────────────────────────────────────────────
-RENDER_URL = os.getenv("RENDER_URL", "https://level-up-bot-ry4m.onrender.com/")
+RENDER_URL = os.getenv("RENDER_URL", "https://level-up-bot-o0ds.onrender.com/")
 
 def keep_alive():
     while True:

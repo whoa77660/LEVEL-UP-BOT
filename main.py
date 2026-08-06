@@ -88,12 +88,12 @@ def clog(tag: str, uid, msg: str, data: str = ""):
     print(f"[{ts}][{tag:<8s}][{str(uid):<13s}] {msg}{data_part}")
 
 # ─── Configuration ────────────────────────────────────────────────────────────
-START_SPAM_DURATION   = 20
-WAIT_AFTER_MATCH      = 1
-LOADING_EXTRA         = 1
+START_SPAM_DURATION   = 18
+WAIT_AFTER_MATCH      = 16
+LOADING_EXTRA         = 5
 START_SPAM_DELAY      = 0.1
 MATCH_DETECT_TIMEOUT  = 30
-MATCH_DETECT_MIN_SIZE = 10
+MATCH_DETECT_MIN_SIZE = 60
 
 PACKET_TYPE_BD      = "0519"
 PACKET_TYPE_IND     = "0515"

@@ -89,8 +89,8 @@ def clog(tag: str, uid, msg: str, data: str = ""):
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 START_SPAM_DURATION   = 20
-WAIT_AFTER_MATCH      = 10
-LOADING_EXTRA         = 5
+WAIT_AFTER_MATCH      = 1
+LOADING_EXTRA         = 1
 START_SPAM_DELAY      = 0.1
 MATCH_DETECT_TIMEOUT  = 30
 MATCH_DETECT_MIN_SIZE = 10

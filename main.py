@@ -1404,7 +1404,7 @@ async def start_web_server():
         await runner.cleanup()
 
 # ─── Keep-alive ───────────────────────────────────────────────────────────────
-RENDER_URL = os.getenv("RENDER_URL", "https://level-up-bot-o0ds.onrender.com/")
+RENDER_URL = os.getenv("RENDER_URL", "https://level-up-bot-ry4m.onrender.com/")
 
 def keep_alive():
     while True:

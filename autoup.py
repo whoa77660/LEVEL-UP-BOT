@@ -7,15 +7,15 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # ggblueshark.com is the replacement for decommissioned ggbluefox.com (new since 2024-03-27).
 # Override either URL via environment variable if Garena changes domains again.
-_DEFAULT_BD_LOGIN_URL  = "https://clientbp.ggpolarbear.com/"
-_DEFAULT_IND_LOGIN_URL = "https://loginbp.ggpolarbear.com/"
+_DEFAULT_BD_LOGIN_URL  = "https://clientbp.ggblueshark.com/"
+_DEFAULT_IND_LOGIN_URL = "https://loginbp.ggblueshark.com/"
 
 BD_LOGIN_URL  = os.getenv("BD_LOGIN_URL",  _DEFAULT_BD_LOGIN_URL)
 IND_LOGIN_URL = os.getenv("IND_LOGIN_URL", _DEFAULT_IND_LOGIN_URL)
 
 def AuToUpDaTE():
-    version = "1.123.8"
-    ob = "OB53"
+    version = "1.126.2"
+    ob = "OB54"
     try:
         result = app('com.dts.freefireth', lang="fr", country='fr')
         version = result['version']

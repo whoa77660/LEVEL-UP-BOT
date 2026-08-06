@@ -11,6 +11,7 @@ import urllib3
 import threading
 import requests
 import collections
+import random
 
 from datetime import datetime
 
@@ -39,7 +40,23 @@ if not FIREBASE_KEY_JSON:
     raise RuntimeError("Missing FIREBASE_KEY_JSON environment variable")
 
 # ─── Firebase ─────────────────────────────────────────────────────────────────
-cred = credentials.Certificate(json.loads(FIREBASE_KEY_JSON))
+firebase_credentials = None
+if FIREBASE_KEY_JSON:
+    try:
+        firebase_credentials = json.loads(FIREBASE_KEY_JSON)
+    except Exception as exc:
+        clog("ERROR", "startup", f"⚠️ Failed to parse FIREBASE_KEY_JSON: {exc}")
+
+if not firebase_credentials:
+    firebase_file = os.path.join(os.path.dirname(__file__), 'firebase.json')
+    if os.path.exists(firebase_file):
+        with open(firebase_file, 'r', encoding='utf-8') as fh:
+            firebase_credentials = json.load(fh)
+
+if not firebase_credentials:
+    raise RuntimeError("Missing Firebase credentials. Provide FIREBASE_KEY_JSON or firebase.json")
+
+cred = credentials.Certificate(firebase_credentials)
 firebase_admin.initialize_app(cred, {'databaseURL': FIREBASE_DATABASE_URL})
 
 ref_root   = db.reference('/')
@@ -110,7 +127,7 @@ async def GeNeRaTeAccEss(uid, password):
     url = "https://ffmconnect.live.gop.garenanow.com/oauth/guest/token/grant"
     clog("OAUTH", uid, f"→ POST {url}")
     headers = {
-        "Host": "ffmconnect.live.gop.garenanow.com",
+        "Host": "100067.connect.garena.com",
         "User-Agent": await Ua(),
         "Content-Type": "application/x-www-form-urlencoded",
         "Accept-Encoding": "gzip, deflate, br",
@@ -175,21 +192,24 @@ async def EncRypTMajoRLoGin(open_id, access_token):
     major_login = MajoRLoGinrEq_pb2.MajorLogin()
     major_login.event_time        = str(datetime.now())[:-7]
     major_login.game_name         = "free fire"
-    major_login.platform_id       = 1
-    major_login.client_version    = version
-    major_login.system_software   = "Android OS 9 / API-28 (PQ3B.190801.10101846/G9650ZHU2ARC6)"
+    major_login.platform_id       = 2
+    try:
+        major_login.client_version    = version
+    except NameError:
+        major_login.client_version    = "1.126.2"
+    major_login.system_software   = "Android OS 11 / API-30 (RQ3A.210805.001)"
     major_login.system_hardware   = "Handheld"
     major_login.telecom_operator  = "Verizon"
     major_login.network_type      = "WIFI"
-    major_login.screen_width      = 1920
-    major_login.screen_height     = 1080
-    major_login.screen_dpi        = "280"
-    major_login.processor_details = "ARM64 FP ASIMD AES VMH | 2865 | 4"
-    major_login.memory            = 3003
-    major_login.gpu_renderer      = "Adreno (TM) 640"
-    major_login.gpu_version       = "OpenGL ES 3.1 v1.46"
+    major_login.screen_width      = 1080
+    major_login.screen_height     = 2400
+    major_login.screen_dpi        = "440"
+    major_login.processor_details = "ARMv8"
+    major_login.memory            = 6144
+    major_login.gpu_renderer      = "Adreno (TM) 650"
+    major_login.gpu_version       = "OpenGL ES 3.2 V@1.50"
     major_login.unique_device_id  = "Google|34a7dcdf-a7d5-4cb6-8d7e-3b0e448a0c57"
-    major_login.client_ip         = "223.191.51.89"
+    major_login.client_ip         = ""
     major_login.language          = "en"
     major_login.open_id           = open_id
     major_login.open_id_type      = "4"
@@ -198,60 +218,93 @@ async def EncRypTMajoRLoGin(open_id, access_token):
     mem.version      = 55
     mem.hidden_value = 81
     major_login.access_token          = access_token
-    major_login.platform_sdk_id       = 1
+    major_login.platform_sdk_id       = 2
     major_login.network_operator_a    = "Verizon"
     major_login.network_type_a        = "WIFI"
     major_login.client_using_version  = "7428b253defc164018c604a1ebbfebdf"
-    major_login.external_storage_total        = 36235
-    major_login.external_storage_available    = 31335
-    major_login.internal_storage_total        = 2519
-    major_login.internal_storage_available    = 703
-    major_login.game_disk_storage_available   = 25010
+    major_login.external_storage_total        = 128512
+    major_login.external_storage_available    = random.randint(38000, 52000)
+    major_login.internal_storage_total        = 110731
+    major_login.internal_storage_available    = random.randint(18000, 32000)
     major_login.game_disk_storage_total       = 26628
-    major_login.external_sdcard_avail_storage = 32992
-    major_login.external_sdcard_total_storage = 36235
+    major_login.game_disk_storage_available   = random.randint(18000, 25000)
+    major_login.external_sdcard_total_storage = 119234
+    major_login.external_sdcard_avail_storage = random.randint(25000, 60000)
     major_login.login_by          = 3
-    major_login.library_path      = "/data/app/com.dts.freefireth-YPKM8jHEwAJlhpmhDhv5MQ==/lib/arm64"
+    major_login.library_path      = "/data/app/~~random/base.apk"
     major_login.reg_avatar        = 1
-    major_login.library_token     = "5b892aaabd688e571f688053118a162b|/data/app/com.dts.freefireth-YPKM8jHEwAJlhpmhDhv5MQ==/base.apk"
+    major_login.library_token     = "hash|base.apk"
     major_login.channel_type      = 3
     major_login.cpu_type          = 2
     major_login.cpu_architecture  = "64"
-    major_login.client_version_code    = "2019118695"
-    major_login.graphics_api          = "OpenGLES2"
+    major_login.client_version_code    = "2024010012"
+    major_login.graphics_api          = "OpenGLES3"
     major_login.supported_astc_bitset = 16383
     major_login.login_open_id_type    = 4
     major_login.analytics_detail      = b"FwQVTgUPX1UaUllDDwcWCRBpWAUOUgsvA1snWlBaO1kFYg=="
-    major_login.loading_time          = 13564
+    major_login.loading_time          = random.randint(9000, 18000)
     major_login.release_channel       = "android"
-    major_login.extra_info            = "KqsHTymw5/5GB23YGniUYN2/q47GATrq7eFeRatf0NkwLKEMQ0PK5BKEk72dPflAxUlEBir6Vtey83XqF593qsl8hwY="
-    major_login.android_engine_init_flag = 110009
     major_login.if_push              = 1
-    major_login.is_vpn               = 1
+    major_login.is_vpn               = 0
+    major_login.android_engine_init_flag = 110009
     major_login.origin_platform_type  = "4"
     major_login.primary_platform_type = "4"
     return await encrypted_proto(major_login.SerializeToString())
 
 async def MajorLogin(payload, login_url, bot_uid="bot"):
-    url = f"{login_url}MajorLogin"
-    clog("LOGIN", bot_uid, f"→ POST {url} payload={len(payload)}B", payload.hex()[:64])
+    # Use canonical loginbp hosts similar to the TCP bot, with sensible fallbacks.
     ssl_context = ssl.create_default_context()
     ssl_context.check_hostname = False
     ssl_context.verify_mode    = ssl.CERT_NONE
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(url, data=payload, headers=Hr, ssl=ssl_context) as response:
-                clog("LOGIN", bot_uid, f"← HTTP {response.status} from {url}")
-                if response.status == 200:
-                    data = await response.read()
-                    clog("LOGIN", bot_uid, f"✅ MajorLogin OK resp={len(data)}B", data.hex()[:64])
-                    return data
-                body = await response.text()
-                clog("ERROR", bot_uid, f"❌ MajorLogin HTTP {response.status}", body[:300])
-                return None
-    except Exception as e:
-        clog("ERROR", bot_uid, f"❌ MajorLogin exception: {e}")
-        return None
+
+    async def _post_raw(url):
+        clog("LOGIN", bot_uid, f"→ POST {url} payload={len(payload)}B", payload.hex()[:64])
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, data=payload, headers=Hr, ssl=ssl_context) as response:
+                    clog("LOGIN", bot_uid, f"← HTTP {response.status} from {url}")
+                    if response.status == 200:
+                        data = await response.read()
+                        clog("LOGIN", bot_uid, f"✅ MajorLogin OK resp={len(data)}B", data.hex()[:64])
+                        return data
+                    body = await response.text()
+                    clog("ERROR", bot_uid, f"❌ MajorLogin HTTP {response.status} from {url}", body[:300])
+                    return None
+        except Exception as e:
+            clog("ERROR", bot_uid, f"❌ MajorLogin exception for {url}: {e}")
+            return None
+
+    candidates = []
+    # Prefer loginbp matching the detected base domain
+    if login_url:
+        if 'ggblueshark' in login_url:
+            candidates.append('https://loginbp.ggblueshark.com/MajorLogin')
+        if 'ggpolarbear' in login_url:
+            candidates.append('https://loginbp.ggpolarbear.com/MajorLogin')
+        # If login_url looks like clientbp, try its loginbp counterpart
+        if 'clientbp' in login_url:
+            candidates.append(login_url.replace('clientbp', 'loginbp').rstrip('/') + '/MajorLogin')
+
+    # Add canonical fallbacks
+    candidates.extend([
+        'https://loginbp.ggblueshark.com/MajorLogin',
+        'https://loginbp.ggpolarbear.com/MajorLogin'
+    ])
+
+    # Deduplicate while preserving order
+    seen = set()
+    uniq = []
+    for c in candidates:
+        if c not in seen:
+            seen.add(c)
+            uniq.append(c)
+
+    for url in uniq:
+        resp = await _post_raw(url)
+        if resp:
+            return resp
+
+    return None
 
 async def GetLoginData(base_url, payload, token, bot_uid="bot"):
     url = f"{base_url}/GetLoginData"
@@ -1371,8 +1424,11 @@ async def main():
         clog("INFO", "server", "🛑 Shutdown signal received")
         stop_event.set()
 
-    loop.add_signal_handler(signal.SIGTERM, shutdown)
-    loop.add_signal_handler(signal.SIGINT,  shutdown)
+    try:
+        loop.add_signal_handler(signal.SIGTERM, shutdown)
+        loop.add_signal_handler(signal.SIGINT,  shutdown)
+    except NotImplementedError:
+        clog("INFO", "server", "⚠️ Signal handlers are not supported on this platform; using keyboard interrupt fallback")
 
     web_task = asyncio.create_task(start_web_server())
     await asyncio.sleep(0.5)
